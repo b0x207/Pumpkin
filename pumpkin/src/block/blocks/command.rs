@@ -1,14 +1,20 @@
 use std::sync::atomic::Ordering;
 
-use pumpkin_data::Block;
+use pumpkin_data::{
+    Block,
+    block_properties::{BlockProperties, CommandBlockLikeProperties},
+};
 use pumpkin_util::{GameMode, math::position::BlockPos};
-use pumpkin_world::{block::entities::command_block::CommandBlockEntity, tick::TickPriority};
+use pumpkin_world::{
+    BlockStateId, block::entities::command_block::CommandBlockEntity, tick::TickPriority,
+};
 
 use crate::{
     block::{
         BlockBehaviour, BlockFuture, BlockMetadata, CanPlaceAtArgs, OnNeighborUpdateArgs,
-        OnScheduledTickArgs,
+        OnPlaceArgs, OnScheduledTickArgs,
     },
+    entity::EntityBase,
     world::World,
 };
 
@@ -51,6 +57,16 @@ impl BlockMetadata for CommandBlock {
 }
 
 impl BlockBehaviour for CommandBlock {
+    fn on_place<'a>(&'a self, args: OnPlaceArgs<'a>) -> BlockFuture<'a, BlockStateId> {
+        Box::pin(async move {
+            let mut props = CommandBlockLikeProperties::default(args.block);
+            let facing = args.player.get_entity().get_facing().opposite();
+            props.facing = facing;
+
+            props.to_state_id(args.block)
+        })
+    }
+
     fn on_neighbor_update<'a>(&'a self, args: OnNeighborUpdateArgs<'a>) -> BlockFuture<'a, ()> {
         Box::pin(async move {
             if let Some(block_entity) = args.world.get_block_entity(args.position).await {
